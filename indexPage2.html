@@ -1,0 +1,241 @@
+﻿<!DOCTYPE html>
+<html lang="th">
+<head>
+
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#000000">
+
+<script>
+  if ('serviceWorker' in navigator) {
+    navigator.serviceWorker.register('sw.js');
+  }
+</script>
+
+
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TANSUM HOME</title>
+    <!-- Tailwind CSS for modern styling -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Sarabun:wght@300;400;700&display=swap');
+        
+        body {
+            font-family: 'Sarabun', sans-serif;
+            background-color: #f0fdf4; /* Light green background */
+            -webkit-tap-highlight-color: transparent;
+        }
+        .menu-card {
+            transition: all 0.2s ease;
+        }
+        .menu-card:active {
+            transform: scale(0.97);
+        }
+        .skeleton {
+            background: linear-gradient(90deg, #e2e8f0 25%, #cbd5e1 50%, #e2e8f0 75%);
+            background-size: 200% 100%;
+            animation: loading 1.5s infinite;
+        }
+        @keyframes loading {
+            0% { background-position: 200% 0; }
+            100% { background-position: -200% 0; }
+        }
+        .glass-panel {
+            background: rgba(255, 255, 255, 0.9);
+            backdrop-filter: blur(10px);
+        }
+    </style>
+</head>
+<body class="min-h-screen flex flex-col items-center p-4 md:p-8 text-slate-800">
+
+    <!-- Header Section -->
+    <header class="w-full max-w-md mb-6 text-center bg-white p-6 rounded-3xl shadow-sm border border-green-100">
+        <!-- Logo Area -->
+        <div class="mb-4">
+            <img src="https://blogger.googleusercontent.com/img/b/R29vZ2xl/AVvXsEjI0mI8mVdZ8bTd7lRNECkKyeQ-aEhHl1zdBM3xAK9ftcmrDIHpFyFdQ6_lZQT34FAFUGGnTVrnGvxR68J3-nWKaNLEptXX9Uvo7GnML4Nhe2mcwDp-w3NAHSPB1fXMKzJjEEUqsg_KkuQ/s1600/1034711153.gif" 
+                 alt="โลโก้โรงเรียนตาลสุมพัฒนา" 
+                 class="w-24 h-24 mx-auto object-contain rounded-full border-4 border-green-50">
+        </div>
+        
+        <h1 class="text-xl font-bold text-green-800 uppercase tracking-tight">
+            โรงเรียนตาลสุมพัฒนา
+        </h1>
+        <div class="h-1 w-12 bg-green-500 mx-auto my-1 rounded-full"></div>
+        <h2 class="text-lg font-semibold text-slate-600">TSP Go V.1.0</h2>
+    </header>
+
+    <!-- Info Widgets (Location & Weather) -->
+    <section class="w-full max-w-md grid grid-cols-2 gap-3 mb-6">
+        <!-- Location Widget -->
+        <div class="bg-white p-4 rounded-2xl border border-green-50 shadow-sm flex flex-col items-center text-center">
+            <div class="bg-blue-50 w-8 h-8 rounded-full flex items-center justify-center text-blue-600 mb-2 text-xs">
+                <i class="fa-solid fa-location-dot"></i>
+            </div>
+            <span class="text-[10px] text-slate-400 uppercase font-bold">สถานที่</span>
+            <span class="text-sm font-bold text-slate-700 truncate w-full">อ.ตาลสุม, จ.อุบลฯ</span>
+        </div>
+        
+        <!-- Weather Widget -->
+        <div id="weather-widget" class="bg-white p-4 rounded-2xl border border-green-50 shadow-sm flex flex-col items-center text-center">
+            <div id="weather-icon" class="bg-orange-50 w-8 h-8 rounded-full flex items-center justify-center text-orange-500 mb-2 text-xs">
+                <i class="fa-solid fa-sun animate-pulse"></i>
+            </div>
+            <span class="text-[10px] text-slate-400 uppercase font-bold">สภาพอากาศ</span>
+            <span id="temp-display" class="text-sm font-bold text-slate-700">กำลังโหลด...</span>
+        </div>
+    </section>
+
+    <!-- Menu Container Header -->
+    <div class="w-full max-w-md flex justify-between items-center mb-4 px-2">
+        <span class="text-sm font-bold text-green-700">
+            <i class="fa-solid fa-list-check mr-2"></i>รายการเช็คชื่อ
+        </span>
+        <span id="date-display" class="text-xs text-slate-500"></span>
+    </div>
+
+    <!-- Main Menu List -->
+    <main id="menu-container" class="w-full max-w-md space-y-3">
+        <!-- Loading State Icons -->
+        <div class="skeleton h-16 w-full rounded-2xl"></div>
+        <div class="skeleton h-16 w-full rounded-2xl"></div>
+        <div class="skeleton h-16 w-full rounded-2xl"></div>
+    </main>
+
+    <!-- Footer / Status -->
+    <footer class="mt-auto pt-10 pb-4 text-center">
+        <div class="inline-flex items-center px-3 py-1 bg-white border border-green-100 rounded-full shadow-sm">
+            <div id="status-indicator" class="w-2 h-2 rounded-full bg-slate-300 mr-2"></div>
+            <p id="status-text" class="text-[10px] text-slate-500 font-medium uppercase tracking-wider">กำลังดึงข้อมูล...</p>
+        </div>
+    </footer>
+
+    <script>
+        /**
+         * Google Apps Script Web App URL
+         */
+        const SHEET_API_URL = "https://script.google.com/macros/s/AKfycbz8p8-iRPe396J257XUQjIhxUSY-Cp9awYMO4Hs8mGRIWzYNQi1jc6YvRsHKx65b6R-/exec"; 
+        
+        // Coordinates for Talsum Phathana School
+        const LAT = 15.34;
+        const LON = 105.07;
+
+        // Mock data if API fails or is empty
+        const MOCK_DATA = [
+            { menuName: "เช็คชื่อเข้าแถว (เช้า)", link: "#" },
+            { menuName: "เช็คชื่อรายวิชา", link: "#" },
+            { menuName: "เช็คชื่อเข้าค่าย/กิจกรรม", link: "#" },
+            { menuName: "รายงานผลการเช็คชื่อรายวัน", link: "#" },
+            { menuName: "จัดการข้อมูลนักเรียน", link: "#" }
+        ];
+
+        // Display current date in Thai format
+        document.getElementById('date-display').innerText = new Date().toLocaleDateString('th-TH', {
+            year: 'numeric',
+            month: 'short',
+            day: 'numeric'
+        });
+
+        // Weather Fetching Function
+        async function fetchWeather() {
+            const tempDisplay = document.getElementById('temp-display');
+            const weatherIconDiv = document.getElementById('weather-icon');
+            try {
+                const res = await fetch(`https://api.open-meteo.com/v1/forecast?latitude=${LAT}&longitude=${LON}&current_weather=true`);
+                const data = await res.json();
+                const temp = Math.round(data.current_weather.temperature);
+                const code = data.current_weather.weathercode;
+                
+                tempDisplay.innerText = `${temp}°C`;
+                
+                // Simple weather code mapping
+                if (code >= 1 && code <= 3) {
+                    weatherIconDiv.innerHTML = '<i class="fa-solid fa-cloud-sun"></i>';
+                } else if (code >= 51) {
+                    weatherIconDiv.innerHTML = '<i class="fa-solid fa-cloud-showers-heavy text-blue-500"></i>';
+                    weatherIconDiv.className = weatherIconDiv.className.replace('text-orange-500', 'text-blue-500').replace('bg-orange-50', 'bg-blue-50');
+                } else {
+                    weatherIconDiv.innerHTML = '<i class="fa-solid fa-sun"></i>';
+                }
+            } catch (e) {
+                tempDisplay.innerText = "N/A";
+            }
+        }
+
+        async function fetchMenu() {
+            const container = document.getElementById('menu-container');
+            const statusText = document.getElementById('status-text');
+            const statusIndicator = document.getElementById('status-indicator');
+
+            try {
+                let data = [];
+                
+                if (SHEET_API_URL) {
+                    const response = await fetch(SHEET_API_URL);
+                    data = await response.json();
+                    statusIndicator.className = "w-2 h-2 rounded-full bg-green-500 mr-2";
+                } else {
+                    await new Promise(resolve => setTimeout(resolve, 800));
+                    data = MOCK_DATA;
+                    statusText.innerText = "โหมดตัวอย่าง (Offline Mode)";
+                    statusIndicator.className = "w-2 h-2 rounded-full bg-orange-400 mr-2 animate-pulse";
+                }
+
+                renderMenu(data);
+
+            } catch (error) {
+                console.error("Fetch error:", error);
+                container.innerHTML = `
+                    <div class="bg-red-50 p-6 rounded-2xl text-red-600 text-center border border-red-100">
+                        <i class="fa-solid fa-triangle-exclamation mb-2 text-2xl"></i>
+                        <p class="font-bold">ไม่สามารถดึงข้อมูลได้</p>
+                        <button onclick="fetchMenu()" class="mt-4 px-6 py-2 bg-red-600 text-white rounded-full text-sm font-bold">ลองใหม่</button>
+                    </div>
+                `;
+                statusText.innerText = "เกิดข้อผิดพลาด";
+                statusIndicator.className = "w-2 h-2 rounded-full bg-red-500 mr-2";
+            }
+        }
+
+        function renderMenu(items) {
+            const container = document.getElementById('menu-container');
+            container.innerHTML = ''; 
+
+            if (items.length === 0) {
+                container.innerHTML = '<p class="text-center text-slate-400 py-10">ไม่พบรายการข้อมูล</p>';
+                return;
+            }
+
+            items.forEach((item, index) => {
+                const card = document.createElement('a');
+                card.href = item.link;
+                card.className = "menu-card flex items-center justify-between bg-white p-4 rounded-2xl shadow-sm border border-slate-100 hover:border-green-400 hover:shadow-md transition-all cursor-pointer";
+                
+                card.innerHTML = `
+                    <div class="flex items-center space-x-4">
+                        <div class="bg-green-50 w-10 h-10 rounded-xl flex items-center justify-center text-green-700 text-sm font-bold">
+                            ${(index + 1).toString().padStart(2, '0')}
+                        </div>
+                        <span class="text-base font-semibold text-slate-700">${item.menuName}</span>
+                    </div>
+                    <div class="bg-slate-50 w-8 h-8 rounded-full flex items-center justify-center">
+                        <i class="fa-solid fa-chevron-right text-slate-300 text-xs"></i>
+                    </div>
+                `;
+                
+                container.appendChild(card);
+            });
+
+            if (SHEET_API_URL) {
+                document.getElementById('status-text').innerText = `ซิงค์ล่าสุด: ${new Date().toLocaleTimeString('th-TH')}`;
+            }
+        }
+
+        // Initial Calls
+        window.onload = () => {
+            fetchMenu();
+            fetchWeather();
+        };
+    </script>
+</body>
+</html>
