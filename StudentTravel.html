@@ -1,0 +1,647 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ระบบบันทึกข้อมูลการเดินทางของนักเรียน</title>
+    <!-- Tailwind CSS for modern responsive styling -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Lucide Icons for high quality visuals -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Sarabun:wght@300;400;500;600;700&display=swap');
+        body {
+            font-family: 'Sarabun', sans-serif;
+        }
+        .custom-spinner {
+            border-top-color: #2563eb;
+            animation: spin 1s linear infinite;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+    </style>
+</head>
+<body class="bg-slate-100 min-h-screen text-slate-800 flex flex-col justify-start items-center">
+
+    <div class="w-full max-w-md bg-white min-h-screen shadow-xl flex flex-col relative overflow-hidden">
+        
+        <!-- Header Section -->
+        <header class="bg-gradient-to-br from-blue-600 to-indigo-700 text-white px-6 py-8 rounded-b-[2.5rem] shadow-lg relative z-10">
+            <div class="flex items-center gap-4">
+                <div class="p-3 bg-white/10 backdrop-blur-md rounded-2xl">
+                    <i data-lucide="bus" class="w-7 h-7 text-white"></i>
+                </div>
+                <div>
+                    <h1 class="text-xl font-bold tracking-tight">ระบบข้อมูลการเดินทาง</h1>
+                    <p class="text-xs text-blue-100/90 mt-0.5">สารสนเทศบันทึกการเดินทางของนักเรียน</p>
+                </div>
+            </div>
+        </header>
+
+        <!-- Main Content Area -->
+        <main class="flex-1 px-5 py-6 pb-24 z-0">
+            
+            <!-- Connection Configuration Section (แสดงแถบตั้งค่าแบบพับเก็บได้ หากมีลิงก์อยู่แล้ว) -->
+            <section id="config-section" class="mb-6">
+                <div class="bg-slate-50 border border-slate-200 rounded-2xl p-4 space-y-3">
+                    <div class="flex items-center justify-between">
+                        <div class="flex items-center gap-2 text-slate-700 font-semibold text-sm">
+                            <i data-lucide="link-2" class="w-4 h-4 text-blue-600"></i>
+                            <span>เชื่อมต่อ Google Apps Script</span>
+                        </div>
+                        <span id="connection-status" class="text-[10px] bg-amber-100 text-amber-700 font-bold px-2 py-0.5 rounded-full flex items-center gap-1">
+                            <span class="w-1.5 h-1.5 bg-amber-500 rounded-full animate-ping"></span> ออฟไลน์
+                        </span>
+                    </div>
+                    
+                    <div id="config-form-wrapper" class="space-y-3">
+                        <p class="text-xs text-slate-500 leading-normal">
+                            ระบบจะดึงข้อมูลจากลิงก์ที่ระบุไว้ในโค้ดเป็นหลัก หากต้องการเปลี่ยนลิงก์ชั่วคราวสามารถแก้ไขด้านล่างนี้ได้
+                        </p>
+                        <div class="space-y-2">
+                            <input type="text" id="script-url" placeholder="https://script.google.com/macros/s/.../exec" 
+                                class="w-full px-3.5 py-2.5 bg-white border border-slate-300 rounded-xl text-xs focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 focus:outline-none transition-all">
+                            <button onclick="connectAndFetchData()" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2.5 rounded-xl text-xs transition-all flex items-center justify-center gap-1.5 active:scale-[0.98]">
+                                <i data-lucide="refresh-cw" class="w-3.5 h-3.5"></i>
+                                เชื่อมต่อและดึงข้อมูลใหม่
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- STEP 1: Main Panel (Class/Room Selection & Student Lists) -->
+            <section id="panel-step-1" class="space-y-4">
+                
+                <!-- Room Select Dropdown -->
+                <div class="space-y-2">
+                    <label class="block text-sm font-semibold text-slate-700 flex items-center gap-1.5">
+                        <i data-lucide="graduation-cap" class="w-4 h-4 text-blue-600"></i> เลือกชั้นเรียน / ห้องเรียน
+                    </label>
+                    <div class="relative">
+                        <select id="class-select" onchange="onClassSelectionChange()" 
+                            class="w-full pl-10 pr-10 py-3.5 bg-white border border-slate-300 rounded-2xl focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 appearance-none shadow-sm transition-all text-base font-medium">
+                            <option value="">-- กรุณาเลือกห้องเรียน --</option>
+                        </select>
+                        <div class="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400">
+                            <i data-lucide="users" class="w-5 h-5"></i>
+                        </div>
+                        <div class="absolute right-3.5 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none">
+                            <i data-lucide="chevron-down" class="w-5 h-5"></i>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Student List Area (Appears after class selection) -->
+                <div id="student-area-container" class="space-y-3 mt-6 hidden">
+                    <div class="flex justify-between items-center px-1">
+                        <h2 class="text-sm font-bold text-slate-700 flex items-center gap-1.5">
+                            <i data-lucide="clipboard-list" class="w-4 h-4 text-blue-600"></i>
+                            รายชื่อสมาชิกในห้อง (<span id="student-count">0</span> คน)
+                        </h2>
+                        <span id="class-badge" class="text-xs bg-blue-100 text-blue-700 font-bold px-3 py-1 rounded-full">ม.1/1</span>
+                    </div>
+
+                    <!-- Search Input inside selected class -->
+                    <div class="relative">
+                        <input type="text" id="search-student" oninput="onSearchFilter()" placeholder="ค้นหาด้วยชื่อ-นามสกุล..." 
+                            class="w-full pl-10 pr-4 py-2.5 bg-slate-100 border-none rounded-xl focus:ring-2 focus:ring-blue-500/20 focus:bg-white transition-all text-sm focus:outline-none">
+                        <i data-lucide="search" class="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 w-4.5 h-4.5"></i>
+                    </div>
+
+                    <!-- Dynamic List of Students -->
+                    <div id="students-list-grid" class="space-y-2 max-h-[380px] overflow-y-auto pr-1">
+                        <!-- Dynamic Student Cards -->
+                    </div>
+                </div>
+            </section>
+
+            <!-- STEP 2: Questionnaire Area (Appears after student selection) -->
+            <section id="panel-step-2" class="hidden space-y-5 animate-fade-in">
+                <button onclick="navigateBackToList()" class="inline-flex items-center gap-1 text-sm font-semibold text-blue-600 hover:text-blue-800 transition">
+                    <i data-lucide="arrow-left" class="w-4 h-4"></i> ย้อนกลับไปเลือกนักเรียนคนอื่น
+                </button>
+
+                <!-- Student Info Card -->
+                <div class="bg-gradient-to-r from-slate-800 to-slate-900 text-white rounded-2xl p-5 shadow-md">
+                    <span class="text-[10px] uppercase tracking-wider text-slate-400 font-bold block mb-1">นักเรียนที่เลือก:</span>
+                    <h3 id="current-student-name" class="text-lg font-bold text-blue-300">เด็กชายก้าวไกร สายยืน</h3>
+                    <p id="current-student-class" class="text-xs text-slate-300 mt-1 flex items-center gap-1">
+                        <i data-lucide="door-open" class="w-3.5 h-3.5"></i> ชั้น ม.1/1
+                    </p>
+                </div>
+
+                <!-- Form Survey -->
+                <form id="questionnaire-form" onsubmit="onFormSubmission(event)" class="space-y-5">
+                    
+                    <!-- Q1: วิธีการเดินทาง -->
+                    <div class="bg-slate-50 border border-slate-200 p-4 rounded-2xl space-y-2">
+                        <label class="block text-sm font-bold text-slate-700 flex items-center gap-2">
+                            <span class="w-6 h-6 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center text-xs font-bold">1</span>
+                            วิธีการเดินทางของนักเรียน
+                        </label>
+                        <div id="q-travel-methods" class="grid grid-cols-1 gap-2 mt-3">
+                            <!-- Dynamic Radio Choices -->
+                        </div>
+                    </div>
+
+                    <!-- Q2: ตำบล -->
+                    <div class="bg-slate-50 border border-slate-200 p-4 rounded-2xl space-y-2">
+                        <label class="block text-sm font-bold text-slate-700 flex items-center gap-2">
+                            <span class="w-6 h-6 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center text-xs font-bold">2</span>
+                            ตำบลที่อยู่อาศัยปัจจุบัน
+                        </label>
+                        <div class="relative mt-2">
+                            <select id="q-subdistrict" required 
+                                class="w-full pl-4 pr-10 py-3.5 bg-white border border-slate-300 rounded-xl focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 appearance-none shadow-sm text-sm font-medium">
+                                <option value="">-- โปรดเลือกตำบล --</option>
+                                <!-- Dynamic Option Elements -->
+                            </select>
+                            <div class="absolute right-3.5 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none">
+                                <i data-lucide="chevron-down" class="w-4 h-4"></i>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Q3: ระยะทาง -->
+                    <div class="bg-slate-50 border border-slate-200 p-4 rounded-2xl space-y-2">
+                        <label class="block text-sm font-bold text-slate-700 flex items-center gap-2">
+                            <span class="w-6 h-6 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center text-xs font-bold">3</span>
+                            ระยะทางจากบ้านถึงโรงเรียน
+                        </label>
+                        <div id="q-distances" class="grid grid-cols-1 gap-2 mt-3">
+                            <!-- Dynamic Radio Choices -->
+                        </div>
+                    </div>
+
+                    <!-- Submit Button -->
+                    <button type="submit" class="w-full py-4 bg-blue-600 hover:bg-blue-700 text-white rounded-2xl font-bold shadow-lg shadow-blue-500/30 flex items-center justify-center gap-2 transition-all active:scale-[0.98]">
+                        <i data-lucide="save" class="w-5 h-5"></i>
+                        ส่งข้อมูลและบันทึกลง Google Sheet
+                    </button>
+                </form>
+            </section>
+        </main>
+
+        <!-- Fixed Footer -->
+        <footer class="absolute bottom-0 w-full py-4 text-center text-[11px] text-slate-400 bg-white border-t border-slate-100">
+            ระบบจัดเก็บข้อมูลการเดินทางประจำปีการศึกษา 2026
+        </footer>
+    </div>
+
+    <!-- Alert and Status Modal (No native Alert) -->
+    <div id="status-modal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4 z-50 hidden">
+        <div class="bg-white rounded-3xl max-w-sm w-full p-6 text-center shadow-2xl transition-all duration-300">
+            
+            <!-- Spinner Loader -->
+            <div id="modal-loading-spinner" class="hidden">
+                <div class="custom-spinner ease-linear rounded-full border-4 border-slate-200 h-14 w-14 mx-auto mb-4"></div>
+            </div>
+
+            <!-- Icon Indicator -->
+            <div id="modal-icon-container" class="w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4">
+                <i id="modal-icon" data-lucide="check" class="w-8 h-8"></i>
+            </div>
+            
+            <h4 id="modal-title-text" class="text-lg font-bold text-slate-900">หัวข้อ</h4>
+            <p id="modal-desc-text" class="text-sm text-slate-500 mt-2 leading-relaxed">รายละเอียดข้อความที่แจ้งเตือน</p>
+            
+            <button id="modal-action-btn" onclick="hideStatusModal()" class="w-full mt-6 py-3 bg-slate-900 hover:bg-slate-800 text-white rounded-xl font-semibold transition active:scale-95">
+                ตกลง
+            </button>
+        </div>
+    </div>
+
+    <!-- Script Application Logic -->
+    <script>
+        // ==========================================================
+        // 1. วาง URL ของ Google Apps Script Web App ของคุณที่นี่
+        // ==========================================================
+        const WEB_APP_URL = "https://script.google.com/macros/s/AKfycbwgsk4xMU2QPkf61tpw4wAApkEkUekR3ERcasBNndbrnh6JIMBfeQijnSzQDSApe6vu/exec"; 
+        // ==========================================================
+
+        // Default Mock dataset in case connection setup is pending
+        const MOCK_LOCAL_DATA = {
+            students: [
+                { name: "เด็กชายก้าวไกร สายยืน", group: "ม.1/1" },
+                { name: "เด็กชายกำพน หงษ์สาพงศ์", group: "ม.1/1" },
+                { name: "เด็กชายกิตติคมน์ ยืนคำพะเนาว์", group: "ม.1/1" },
+                { name: "เด็กชายจตุพงศ์ โคตรพงษ์", group: "ม.1/1" },
+                { name: "เด็กชายณัฐพัชร์ กุศล", group: "ม.1/1" },
+                { name: "เด็กชายทวีทรัพย์ วิเศษพูน", group: "ม.1/1" },
+                { name: "เด็กชายทวีวัฒน์ สีหะนันท์", group: "ม.1/1" },
+                { name: "เด็กชายธนบูลย์ บุญช่วย", group: "ม.1/1" },
+                { name: "เด็กชายธีรภัทร อินบางยาง", group: "ม.1/1" },
+                { name: "เด็กชายนันทภัทร์ สระหอม", group: "ม.1/1" }
+            ],
+            questions: {
+                travelMethods: ["ผู้ปกครองมาส่ง", "รถจักรยานยนต์", "รถโดยสารประจำทาง", "รถรับส่ง", "เดินเท้า", "มากับเพื่อน"],
+                subdistricts: ["ตาลสุม", "สว่าง", "โพธิ์ศรี", "คำหว้า", "จิกเทิง", "สำโรง", "สว่างวีระวงศ์"],
+                distances: ["น้อยกว่า 1 กิโลเมตร", "1-3 กิโลเมตร", "3-5 กิโลเมตร", "5-10 กิโลเมตร", "มากกว่า 10 กิโลเมตร"]
+            }
+        };
+
+        // App Status States
+        let systemState = {
+            students: [...MOCK_LOCAL_DATA.students],
+            questions: JSON.parse(JSON.stringify(MOCK_LOCAL_DATA.questions)),
+            classList: ["ม.1/1"],
+            currentClass: "",
+            selectedStudent: null,
+            storedAnswers: {},
+            apiEndpoint: ""
+        };
+
+        // Initialize App UI
+        window.addEventListener('DOMContentLoaded', () => {
+            // ลำดับขั้นตอนการตรวจสอบ URL
+            if (WEB_APP_URL && !WEB_APP_URL.includes("YOUR_SCRIPT_ID_HERE")) {
+                // กรณีใส่ URL ไว้ในโค้ดโดยตรงแล้ว
+                document.getElementById('script-url').value = WEB_APP_URL;
+                systemState.apiEndpoint = WEB_APP_URL;
+                
+                // ย่อส่วนการแสดงฟอร์ม URL เพื่อไม่ให้รกสายตาผู้ใช้
+                document.getElementById('config-form-wrapper').classList.add('hidden');
+                document.getElementById('config-section').addEventListener('click', toggleConfigForm);
+                document.getElementById('config-section').style.cursor = 'pointer';
+
+                // โหลดข้อมูลล่าสุดทันทีแบบเงียบ ๆ
+                connectAndFetchData(true);
+            } else {
+                // หากยังเป็นค่าตั้งต้น ให้ลองดึงจาก localStorage
+                const savedUrl = localStorage.getItem('google_sheet_script_url');
+                if (savedUrl) {
+                    document.getElementById('script-url').value = savedUrl;
+                    systemState.apiEndpoint = savedUrl;
+                    connectAndFetchData(true);
+                } else {
+                    renderAppInterface();
+                }
+            }
+            lucide.createIcons();
+        });
+
+        // เปิด-ปิด การแสดงฟอร์ม URL เผื่อต้องการสลับเปลี่ยนลิงก์ในหน้าเว็บภายหลัง
+        function toggleConfigForm(e) {
+            // ไม่ให้การคลิกปุ่มเชื่อมต่อหลักส่งผลให้เกิดการพับฟอร์มซ้ำ
+            if (e.target.closest('button') || e.target.closest('input')) return;
+            const wrapper = document.getElementById('config-form-wrapper');
+            wrapper.classList.toggle('hidden');
+        }
+
+        function renderAppInterface() {
+            // Filter unique class rooms from loaded dataset
+            const classes = [...new Set(systemState.students.map(item => item.group))];
+            systemState.classList = classes;
+
+            // Load choices into classroom selector
+            const classDropdown = document.getElementById('class-select');
+            classDropdown.innerHTML = '<option value="">-- กรุณาเลือกห้องเรียน --</option>';
+            classes.forEach(cls => {
+                const opt = document.createElement('option');
+                opt.value = cls;
+                opt.textContent = cls;
+                classDropdown.appendChild(opt);
+            });
+
+            // If only one class exists, auto-select it
+            if (classes.length > 0) {
+                classDropdown.value = classes[0];
+                onClassSelectionChange();
+            }
+
+            // Render static structure of the questions
+            populateQuestionsElements();
+        }
+
+        // On selection of class dropdown
+        function onClassSelectionChange() {
+            const dropdown = document.getElementById('class-select');
+            systemState.currentClass = dropdown.value;
+
+            const studentContainer = document.getElementById('student-area-container');
+            if (systemState.currentClass) {
+                studentContainer.classList.remove('hidden');
+                document.getElementById('class-badge').textContent = systemState.currentClass;
+                renderStudentListGrid();
+            } else {
+                studentContainer.classList.add('hidden');
+            }
+        }
+
+        // Display list of students filtered by group & search
+        function renderStudentListGrid() {
+            const grid = document.getElementById('students-list-grid');
+            const searchVal = document.getElementById('search-student').value.toLowerCase();
+
+            const filteredStudents = systemState.students.filter(student => {
+                const matchesGroup = student.group === systemState.currentClass;
+                const matchesSearch = student.name.toLowerCase().includes(searchVal);
+                return matchesGroup && matchesSearch;
+            });
+
+            document.getElementById('student-count').textContent = filteredStudents.length;
+            grid.innerHTML = '';
+
+            if (filteredStudents.length === 0) {
+                grid.innerHTML = `
+                    <div class="text-center py-10 text-slate-400 text-sm">
+                        <i data-lucide="info" class="w-8 h-8 mx-auto mb-2 text-slate-300"></i>
+                        ไม่พบรายชื่อนักเรียนในห้องเรียนนี้
+                    </div>
+                `;
+                lucide.createIcons();
+                return;
+            }
+
+            filteredStudents.forEach(student => {
+                const hasCompleted = systemState.storedAnswers[student.name] ? true : false;
+                const initialChar = student.name.replace(/^(เด็กชาย|เด็กหญิง|นางสาว|นาย)/, '').substring(0, 2);
+
+                const card = document.createElement('div');
+                card.onclick = () => selectStudentForSurvey(student);
+                card.className = `p-4 rounded-2xl border transition-all duration-200 cursor-pointer flex items-center justify-between active:scale-[0.99] ${
+                    hasCompleted 
+                    ? 'bg-emerald-50/50 border-emerald-200 hover:bg-emerald-50' 
+                    : 'bg-white border-slate-200 hover:border-blue-400 hover:shadow-sm'
+                }`;
+
+                card.innerHTML = `
+                    <div class="flex items-center gap-3">
+                        <div class="w-10 h-10 rounded-full flex items-center justify-center text-sm font-bold ${
+                            hasCompleted ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-100 text-slate-600'
+                        }">
+                            ${initialChar}
+                        </div>
+                        <div>
+                            <span class="font-bold text-slate-800 text-sm block">${student.name}</span>
+                            <span class="text-[10px] text-slate-400 font-medium">ห้องเรียน: ${student.group}</span>
+                        </div>
+                    </div>
+                    <div>
+                        ${hasCompleted ? `
+                            <span class="text-xs text-emerald-600 bg-emerald-100/70 px-3 py-1 rounded-full font-semibold flex items-center gap-1">
+                                <i data-lucide="check-circle" class="w-3.5 h-3.5"></i> บันทึกแล้ว
+                            </span>
+                        ` : `
+                            <span class="text-xs text-blue-600 bg-blue-50 px-3 py-1 rounded-full font-semibold flex items-center gap-1">
+                                ตอบคำถาม <i data-lucide="chevron-right" class="w-3.5 h-3.5"></i>
+                            </span>
+                        `}
+                    </div>
+                `;
+                grid.appendChild(card);
+            });
+
+            lucide.createIcons();
+        }
+
+        // On typing search filter query
+        function onSearchFilter() {
+            renderStudentListGrid();
+        }
+
+        // Render input configurations dynamically from state
+        function populateQuestionsElements() {
+            // Q1: Methods of travel (Radios)
+            const methodsGrid = document.getElementById('q-travel-methods');
+            methodsGrid.innerHTML = '';
+            systemState.questions.travelMethods.forEach(method => {
+                const label = document.createElement('label');
+                label.className = "flex items-center p-3.5 bg-white border border-slate-200 rounded-xl cursor-pointer hover:bg-slate-50 transition-all select-none";
+                label.innerHTML = `
+                    <input type="radio" name="travel_method" value="${method}" required class="w-4 h-4 text-blue-600 focus:ring-blue-500 border-slate-300">
+                    <span class="ml-3 text-sm text-slate-700 font-medium">${method}</span>
+                `;
+                methodsGrid.appendChild(label);
+            });
+
+            // Q2: Subdistricts (Dropdown)
+            const subdistrictSelect = document.getElementById('q-subdistrict');
+            subdistrictSelect.innerHTML = '<option value="">-- โปรดเลือกตำบล --</option>';
+            systemState.questions.subdistricts.forEach(sub => {
+                const opt = document.createElement('option');
+                opt.value = sub;
+                opt.textContent = sub;
+                subdistrictSelect.appendChild(opt);
+            });
+
+            // Q3: Distances (Radios)
+            const distanceContainer = document.getElementById('q-distances');
+            distanceContainer.innerHTML = '';
+            systemState.questions.distances.forEach(dist => {
+                const label = document.createElement('label');
+                label.className = "flex items-center p-3.5 bg-white border border-slate-200 rounded-xl cursor-pointer hover:bg-slate-50 transition-all select-none";
+                label.innerHTML = `
+                    <input type="radio" name="distance" value="${dist}" required class="w-4 h-4 text-blue-600 focus:ring-blue-500 border-slate-300">
+                    <span class="ml-3 text-sm text-slate-700 font-medium">${dist}</span>
+                `;
+                distanceContainer.appendChild(label);
+            });
+        }
+
+        // Load targeted student questionnaire
+        function selectStudentForSurvey(student) {
+            systemState.selectedStudent = student;
+            
+            document.getElementById('current-student-name').textContent = student.name;
+            document.getElementById('current-student-class').innerHTML = `<i data-lucide="door-open" class="w-3.5 h-3.5"></i> ชั้น ${student.group}`;
+            lucide.createIcons();
+
+            // Clear or Populate existing responses
+            const form = document.getElementById('questionnaire-form');
+            form.reset();
+
+            const existingAnswers = systemState.storedAnswers[student.name];
+            if (existingAnswers) {
+                const methodRadio = form.querySelector(`input[name="travel_method"][value="${existingAnswers.travelMethod}"]`);
+                if (methodRadio) methodRadio.checked = true;
+
+                document.getElementById('q-subdistrict').value = existingAnswers.subdistrict;
+
+                const distanceRadio = form.querySelector(`input[name="distance"][value="${existingAnswers.distance}"]`);
+                if (distanceRadio) distanceRadio.checked = true;
+            }
+
+            document.getElementById('panel-step-1').classList.add('hidden');
+            document.getElementById('panel-step-2').classList.remove('hidden');
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+        }
+
+        function navigateBackToList() {
+            document.getElementById('panel-step-2').classList.add('hidden');
+            document.getElementById('panel-step-1').classList.remove('hidden');
+            systemState.selectedStudent = null;
+            renderStudentListGrid();
+        }
+
+        // CONNECT TO APPS SCRIPT WEB APP
+        async function connectAndFetchData(isSilent = false) {
+            const urlInput = document.getElementById('script-url').value.trim();
+            if (!urlInput) {
+                if (!isSilent) showNotificationModal('ข้อผิดพลาด', 'กรุณาระบุ URL ของ Google Apps Script ของคุณเพื่อเริ่มต้น', 'error');
+                return;
+            }
+
+            systemState.apiEndpoint = urlInput;
+            localStorage.setItem('google_sheet_script_url', urlInput);
+
+            if (!isSilent) showLoadingModal('กำลังเชื่อมต่อฐานข้อมูล Google Sheet...');
+
+            try {
+                const response = await fetch(`${urlInput}?action=getData`);
+                if (!response.ok) throw new Error("HTTP Response Status Non-200");
+
+                const result = await response.json();
+                if (result.status === "success") {
+                    
+                    // Sync loaded configurations
+                    systemState.students = result.data.students;
+                    
+                    if (result.data.questions.travelMethods.length > 0) {
+                        systemState.questions.travelMethods = result.data.questions.travelMethods;
+                    }
+                    if (result.data.questions.subdistricts.length > 0) {
+                        systemState.questions.subdistricts = result.data.questions.subdistricts;
+                    }
+                    if (result.data.questions.distances.length > 0) {
+                        systemState.questions.distances = result.data.questions.distances;
+                    }
+
+                    renderAppInterface();
+
+                    // อัปเดตสถานะการเชื่อมต่อบน UI
+                    const statusBadge = document.getElementById('connection-status');
+                    statusBadge.className = 'text-[10px] bg-emerald-100 text-emerald-700 font-bold px-2 py-0.5 rounded-full flex items-center gap-1';
+                    statusBadge.innerHTML = '<span class="w-1.5 h-1.5 bg-emerald-500 rounded-full"></span> ออนไลน์';
+
+                    if (!isSilent) {
+                        hideStatusModal();
+                        showNotificationModal('เชื่อมต่อสำเร็จ', `ดาวน์โหลดรายชื่อนักเรียนสำเร็จทั้งหมด ${systemState.students.length} รายการ`, 'success');
+                    }
+                } else {
+                    throw new Error(result.message || 'โครงสร้างข้อมูลล้มเหลว');
+                }
+            } catch (err) {
+                console.error(err);
+                const statusBadge = document.getElementById('connection-status');
+                statusBadge.className = 'text-[10px] bg-rose-100 text-rose-700 font-bold px-2 py-0.5 rounded-full flex items-center gap-1';
+                statusBadge.innerHTML = '<span class="w-1.5 h-1.5 bg-rose-500 rounded-full"></span> การเชื่อมต่อมีปัญหา';
+
+                if (!isSilent) {
+                    hideStatusModal();
+                    showNotificationModal(
+                        'ไม่สามารถเข้าถึงข้อมูลได้', 
+                        'ไม่พบข้อมูลการตอบกลับจาก Google Sheet หรือการตั้งค่า Deployment ของคุณผิดพลาด โปรดตรวจสอบสิทธิ์เป็น "Anyone"', 
+                        'error'
+                    );
+                }
+            }
+        }
+
+        // SUBMIT SURVEY RESPONSE FOR SAVING TO GOOGLE SHEET
+        async function onFormSubmission(e) {
+            e.preventDefault();
+            if (!systemState.selectedStudent) return;
+
+            const form = document.getElementById('questionnaire-form');
+            const travelMethod = form.querySelector('input[name="travel_method"]:checked')?.value;
+            const subdistrict = document.getElementById('q-subdistrict').value;
+            const distance = form.querySelector('input[name="distance"]:checked')?.value;
+
+            const payload = {
+                name: systemState.selectedStudent.name,
+                group: systemState.selectedStudent.group,
+                travelMethod: travelMethod,
+                subdistrict: subdistrict,
+                distance: distance
+            };
+
+            showLoadingModal('กำลังอัปเดตข้อมูลขึ้น Google Sheet...');
+
+            if (systemState.apiEndpoint) {
+                try {
+                    // Send POST Request using Apps Script parameters
+                    await fetch(systemState.apiEndpoint, {
+                        method: 'POST',
+                        mode: 'no-cors', // standard bypass for browser CORS issues with Google Apps Script
+                        headers: {
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify(payload)
+                    });
+
+                    // Save local copy to memorize checked status
+                    systemState.storedAnswers[systemState.selectedStudent.name] = payload;
+                    
+                    hideStatusModal();
+                    showNotificationModal(
+                        'บันทึกสำเร็จ!', 
+                        `ข้อมูลคำตอบของ "${systemState.selectedStudent.name}" ถูกส่งเข้าระบบชีตสำเร็จแล้ว`, 
+                        'success'
+                    );
+                    navigateBackToList();
+
+                } catch (err) {
+                    console.error(err);
+                    hideStatusModal();
+                    showNotificationModal(
+                        'เกิดข้อผิดพลาดในการเชื่อมต่อ', 
+                        'บันทึกข้อมูลไม่สำเร็จชั่วคราว ข้อมูลปัจจุบันจัดเก็บไว้ภายในเครื่องชั่วคราวแล้ว', 
+                        'error'
+                    );
+                    systemState.storedAnswers[systemState.selectedStudent.name] = payload;
+                    navigateBackToList();
+                }
+            } else {
+                // If offline or not configured yet
+                systemState.storedAnswers[systemState.selectedStudent.name] = payload;
+                hideStatusModal();
+                showNotificationModal(
+                    'บันทึกในเครื่องเรียบร้อย (ออฟไลน์)', 
+                    'ยังไม่มีการเชื่อมต่อกับระบบออนไลน์ ข้อมูลของคุณถูกจำไว้ในหน่วยความจำของหน้าเบราว์เซอร์นี้แล้ว', 
+                    'success'
+                );
+                navigateBackToList();
+            }
+        }
+
+        // MODAL NOTIFICATION UTILITIES
+        function showLoadingModal(msg) {
+            document.getElementById('modal-loading-spinner').classList.remove('hidden');
+            document.getElementById('modal-icon-container').classList.add('hidden');
+            document.getElementById('modal-title-text').textContent = 'กรุณารอสักครู่';
+            document.getElementById('modal-desc-text').textContent = msg;
+            document.getElementById('modal-action-btn').classList.add('hidden');
+            document.getElementById('status-modal').classList.remove('hidden');
+        }
+
+        function showNotificationModal(title, msg, type = 'success') {
+            document.getElementById('modal-loading-spinner').classList.add('hidden');
+            
+            const iconContainer = document.getElementById('modal-icon-container');
+            iconContainer.classList.remove('hidden');
+            
+            if (type === 'success') {
+                iconContainer.className = 'w-16 h-16 rounded-full bg-emerald-100 text-emerald-600 flex items-center justify-center mx-auto mb-4';
+                document.getElementById('modal-icon').setAttribute('data-lucide', 'check');
+            } else {
+                iconContainer.className = 'w-16 h-16 rounded-full bg-rose-100 text-rose-600 flex items-center justify-center mx-auto mb-4';
+                document.getElementById('modal-icon').setAttribute('data-lucide', 'alert-circle');
+            }
+            
+            document.getElementById('modal-title-text').textContent = title;
+            document.getElementById('modal-desc-text').textContent = msg;
+            document.getElementById('modal-action-btn').classList.remove('hidden');
+            document.getElementById('status-modal').classList.remove('hidden');
+            lucide.createIcons();
+        }
+
+        function hideStatusModal() {
+            document.getElementById('status-modal').classList.add('hidden');
+        }
+    </script>
+</body>
+</html>
