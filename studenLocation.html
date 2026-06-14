@@ -1,0 +1,826 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, minimum-scale=1.0">
+    <title>ระบบแผนที่พิกัดบ้านนักเรียน (Student Home Mapping System)</title>
+    
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- Leaflet CSS & JS for Map -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin=""/>
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+    
+    <!-- PapaParse for CSV Parsing -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
+    
+    <!-- Font Awesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <!-- Google Fonts (Sarabun & Kanit) -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Kanit:wght@300;400;500;600&family=Sarabun:wght@300;400;500;600&display=swap" rel="stylesheet">
+
+    <style>
+        body {
+            font-family: 'Sarabun', sans-serif;
+            -webkit-tap-highlight-color: transparent;
+        }
+        h1, h2, h3, .font-kanit {
+            font-family: 'Kanit', sans-serif;
+        }
+        
+        /* Responsive height scaling for dynamic screens */
+        #map {
+            height: 50vh;
+            min-height: 320px;
+            max-height: 650px;
+        }
+        @media (min-width: 768px) {
+            #map {
+                height: calc(100vh - 240px);
+                min-height: 480px;
+            }
+        }
+        
+        /* Custom smooth scrollbar for modern lists */
+        ::-webkit-scrollbar {
+            width: 6px;
+            height: 6px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #f1f5f9;
+            border-radius: 8px;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #cbd5e1;
+            border-radius: 8px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #94a3b8;
+        }
+    </style>
+</head>
+<body class="bg-slate-50 text-slate-800 min-h-screen flex flex-col antialiased">
+
+    <!-- Navbar -->
+    <header class="bg-gradient-to-r from-blue-600 to-indigo-700 text-white shadow-md sticky top-0 z-[1000]">
+        <div class="max-w-7xl mx-auto px-4 py-3.5 sm:px-6 lg:px-8 flex justify-between items-center gap-3">
+            <div class="flex items-center gap-2.5 sm:gap-3">
+                <div class="p-2 bg-white/10 rounded-xl">
+                    <i class="fa-solid fa-map-location-dot text-xl sm:text-2xl text-yellow-300"></i>
+                </div>
+                <div>
+                    <h1 class="text-base sm:text-lg md:text-xl font-bold tracking-tight leading-tight">ระบบแผนที่พิกัดบ้านนักเรียน</h1>
+                    <p class="text-[10px] sm:text-xs text-blue-100 font-light">แสดงพิกัดที่ตั้งนักเรียนรายบุคคลผ่านระบบออนไลน์</p>
+                </div>
+            </div>
+            <div class="flex shrink-0">
+                <button onclick="toggleModal('infoModal')" class="bg-white/15 active:scale-95 hover:bg-white/25 text-white text-xs px-3 py-2 rounded-xl font-medium transition-all flex items-center gap-1.5 shadow-sm">
+                    <i class="fa-solid fa-circle-info"></i> <span class="hidden sm:inline">คู่มือโครงสร้างข้อมูล</span><span class="sm:hidden">คู่มือ</span>
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Content Area -->
+    <main class="flex-grow max-w-7xl w-full mx-auto px-3 py-4 sm:px-6 lg:px-8 flex flex-col gap-4 sm:gap-6">
+        
+        <!-- Top Info & Stats Card -->
+        <div class="bg-white rounded-2xl shadow-sm border border-slate-100 p-4 sm:p-5 flex flex-col md:flex-row gap-4 justify-between items-start md:items-center">
+            
+            <!-- Connection Status -->
+            <div class="w-full md:w-2/3">
+                <div class="flex items-center gap-2 text-emerald-600 mb-1">
+                    <span class="relative flex h-2.5 w-2.5">
+                        <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                        <span class="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
+                    </span>
+                    <span id="connectionStatus" class="text-xs font-semibold uppercase tracking-wider font-kanit">เชื่อมโยงข้อมูลสำเร็จ</span>
+                </div>
+                <h2 class="text-base sm:text-lg font-bold text-slate-800 font-kanit">แผนที่แสดงพิกัดที่ตั้งนักเรียนรายบุคคล</h2>
+                <p id="sourceLabel" class="text-xs text-slate-500 mt-0.5">
+                    ดึงข้อมูลโดยตรงแบบอัตโนมัติจากไฟล์ฐานข้อมูลกลางทางออนไลน์
+                </p>
+            </div>
+
+            <!-- Stats Box -->
+            <div class="grid grid-cols-3 gap-2 sm:gap-4 w-full md:w-1/3 bg-slate-50 p-3 sm:p-4 rounded-xl border border-slate-100 shrink-0">
+                <div class="text-center">
+                    <span class="text-[10px] sm:text-xs text-slate-500 block truncate">นักเรียน</span>
+                    <span id="statTotal" class="text-lg sm:text-2xl font-bold text-slate-800 font-kanit">0</span>
+                    <span class="text-[9px] sm:text-[10px] text-slate-400 block">คน</span>
+                </div>
+                <div class="text-center border-x border-slate-200">
+                    <span class="text-[10px] sm:text-xs text-slate-500 block truncate">มีพิกัดบ้าน</span>
+                    <span id="statMapped" class="text-lg sm:text-2xl font-bold text-green-600 font-kanit">0</span>
+                    <span class="text-[9px] sm:text-[10px] text-slate-400 block">คน</span>
+                </div>
+                <div class="text-center">
+                    <span class="text-[10px] sm:text-xs text-slate-500 block truncate">ไม่มีพิกัด</span>
+                    <span id="statMissing" class="text-lg sm:text-2xl font-bold text-rose-500 font-kanit">0</span>
+                    <span class="text-[9px] sm:text-[10px] text-slate-400 block">คน</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Notification Message Banner -->
+        <div id="statusMessage" class="hidden rounded-xl p-3 sm:p-4 flex items-center gap-2.5 shadow-sm"></div>
+
+        <!-- Main Workspace: Split View (Responsive for Mobile & Tablet) -->
+        <div class="grid grid-cols-1 md:grid-cols-12 gap-4 sm:gap-6 items-stretch">
+            
+            <!-- Left Side: Interactive Map (Col 7 on tablets, Col 8 on desktop) -->
+            <div class="md:col-span-7 lg:col-span-8 flex flex-col bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden">
+                <div class="bg-slate-50 px-4 py-2.5 border-b border-slate-100 flex justify-between items-center">
+                    <h2 class="font-medium text-xs sm:text-sm text-slate-700 font-kanit flex items-center gap-1.5">
+                        <i class="fa-solid fa-map text-blue-500"></i> แผนที่ตำแหน่งที่ตั้งบ้านนักเรียน
+                    </h2>
+                    <span id="mapLegend" class="text-[10px] sm:text-xs text-slate-500 flex items-center gap-1 bg-white px-2 py-0.5 rounded border border-slate-200">
+                        <span class="w-2 h-2 bg-blue-600 rounded-full inline-block"></span> บ้านนักเรียน
+                    </span>
+                </div>
+                <div class="relative flex-grow">
+                    <!-- Map Container -->
+                    <div id="map" class="w-full z-10"></div>
+                </div>
+            </div>
+
+            <!-- Right Side: Sidebar & List (Col 5 on tablets, Col 4 on desktop) -->
+            <div class="md:col-span-5 lg:col-span-4 flex flex-col bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden">
+                <div class="bg-slate-50 px-4 py-2.5 border-b border-slate-100">
+                    <h2 class="font-medium text-xs sm:text-sm text-slate-700 font-kanit flex items-center gap-1.5">
+                        <i class="fa-solid fa-filter text-blue-500"></i> ค้นหาและคัดกรองข้อมูล
+                    </h2>
+                </div>
+                
+                <!-- Filter Section -->
+                <div class="p-3 sm:p-4 border-b border-slate-100 space-y-2.5 sm:space-y-3 bg-slate-50/50">
+                    <!-- Search Input -->
+                    <div>
+                        <label class="block text-[10px] sm:text-xs font-medium text-slate-500 mb-1">ค้นหาตามชื่อนักเรียน</label>
+                        <div class="relative">
+                            <span class="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none text-slate-400">
+                                <i class="fa-solid fa-magnifying-glass text-xs sm:text-sm"></i>
+                            </span>
+                            <input type="text" id="searchName" oninput="applyFilters()" 
+                                   placeholder="พิมพ์ชื่อหรือนามสกุลนักเรียน..." 
+                                   class="w-full bg-white border border-slate-200 rounded-xl pl-8.5 pr-3 py-2 text-xs sm:text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 transition">
+                        </div>
+                    </div>
+                    
+                    <!-- Class Filter -->
+                    <div>
+                        <label class="block text-[10px] sm:text-xs font-medium text-slate-500 mb-1">เลือกห้องเรียน</label>
+                        <select id="classFilter" onchange="applyFilters()" 
+                                class="w-full bg-white border border-slate-200 rounded-xl px-2.5 py-2 text-xs sm:text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 transition">
+                            <option value="all">แสดงทั้งหมดทุกห้องเรียน</option>
+                        </select>
+                    </div>
+                </div>
+
+                <!-- Student Directory List -->
+                <div class="flex-grow overflow-y-auto max-h-[250px] md:max-h-[calc(100vh-340px)] divide-y divide-slate-100" id="studentList">
+                    <!-- Dynamic insertion here -->
+                    <div class="p-6 text-center text-slate-400">
+                        <i class="fa-solid fa-folder-open text-2xl mb-1.5 block text-slate-300"></i>
+                        ไม่มีข้อมูลนักเรียน <br> <span class="text-[10px]">ระบบกำลังประมวลผลข้อมูล...</span>
+                    </div>
+                </div>
+            </div>
+
+        </div>
+
+        <!-- Table View: Bottom Section -->
+        <div class="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden">
+            <div class="bg-slate-50 px-4 py-3 sm:px-6 sm:py-4 border-b border-slate-100 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
+                <div>
+                    <h2 class="font-medium text-slate-700 font-kanit flex items-center gap-2 text-sm sm:text-base md:text-lg">
+                        <i class="fa-solid fa-list-ol text-blue-500"></i> รายชื่อนักเรียนและพิกัดตำแหน่งบ้านทั้งหมด
+                    </h2>
+                    <p class="text-[10px] sm:text-xs text-slate-500">ตรวจสอบ แก้ไข และกดส่องพิกัดเพื่อเริ่มนำทางได้ทันที</p>
+                </div>
+                <button onclick="exportToCsv()" class="w-full sm:w-auto bg-green-600 hover:bg-green-700 active:scale-95 text-white text-xs px-4 py-2.5 rounded-xl transition-all flex items-center justify-center gap-1.5 shadow-sm font-medium">
+                    <i class="fa-solid fa-file-export"></i> ส่งออกข้อมูลเป็น CSV
+                </button>
+            </div>
+            
+            <div class="overflow-x-auto w-full -webkit-overflow-scrolling-touch">
+                <table class="w-full text-left border-collapse min-w-[700px]">
+                    <thead>
+                        <tr class="bg-slate-50/70 border-b border-slate-100 text-slate-600 text-[10px] sm:text-xs font-semibold uppercase">
+                            <th class="py-3 px-4 w-12 text-center">ที่</th>
+                            <th class="py-3 px-4 w-16">รูปภาพ</th>
+                            <th class="py-3 px-4 w-28">ห้องเรียน</th>
+                            <th class="py-3 px-4">ชื่อ-นามสกุลนักเรียน</th>
+                            <th class="py-3 px-4 w-28 text-center">ละติจูด (Lat)</th>
+                            <th class="py-3 px-4 w-28 text-center">ลองจิจูด (Lng)</th>
+                            <th class="py-3 px-4 w-40 text-center">การดำเนินการ</th>
+                        </tr>
+                    </thead>
+                    <tbody id="studentTableBody" class="divide-y divide-slate-100 text-xs sm:text-sm text-slate-700">
+                        <!-- Dynamic content here -->
+                    </tbody>
+                </table>
+            </div>
+            <div id="noDataRow" class="hidden p-6 text-center text-slate-400 border-t border-slate-100 text-xs sm:text-sm">
+                ไม่มีข้อมูลที่ตรงตามตัวกรองค้นหา
+            </div>
+        </div>
+
+    </main>
+
+    <!-- Guide / Instructions Modal -->
+    <div id="infoModal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[9999] hidden flex items-center justify-center p-3 sm:p-4">
+        <div class="bg-white rounded-2xl max-w-2xl w-full shadow-xl overflow-hidden flex flex-col">
+            <div class="bg-gradient-to-r from-blue-600 to-indigo-700 text-white px-5 py-3.5 sm:px-6 sm:py-4 flex justify-between items-center">
+                <h3 class="text-base sm:text-lg font-bold font-kanit flex items-center gap-2">
+                    <i class="fa-solid fa-circle-question"></i> โครงสร้างคอลัมน์ของไฟล์ฐานข้อมูล
+                </h3>
+                <button onclick="toggleModal('infoModal')" class="text-white hover:text-slate-200 transition p-1">
+                    <i class="fa-solid fa-xmark text-lg sm:text-xl"></i>
+                </button>
+            </div>
+            <div class="p-5 sm:p-6 overflow-y-auto max-h-[70vh] space-y-4 text-xs sm:text-sm text-slate-600 leading-relaxed">
+                <p class="font-medium text-slate-800">โปรดตั้งชื่อคอลัมน์ใน Google Sheets ของท่านให้สะกดตรงตามหัวข้อต่อไปนี้ เพื่อให้ระบบประมวลผลได้อย่างถูกต้อง:</p>
+                
+                <div class="bg-slate-50 p-3 sm:p-4 rounded-xl border border-slate-100 overflow-x-auto">
+                    <table class="w-full text-left text-[11px] sm:text-xs font-mono min-w-[320px]">
+                        <thead>
+                            <tr class="border-b border-slate-200 pb-1 text-slate-500">
+                                <th class="pb-2">ชื่อคอลัมน์ที่รองรับ</th>
+                                <th class="pb-2">คำอธิบาย</th>
+                            </tr>
+                        </thead>
+                        <tbody class="divide-y divide-slate-100">
+                            <tr>
+                                <td class="py-1.5 text-blue-600 font-semibold">ห้องเรียน</td>
+                                <td class="py-1.5 text-slate-600">ชั้นเรียนของนักเรียน (เช่น ม.1/1, ม.2/2)</td>
+                            </tr>
+                            <tr>
+                                <td class="py-1.5 text-blue-600 font-semibold">ชื่อนักเรียน</td>
+                                <td class="py-1.5 text-slate-600">ชื่อและนามสกุลจริงของนักเรียน</td>
+                            </tr>
+                            <tr>
+                                <td class="py-1.5 text-blue-600 font-semibold">ละติจูด (Lat)</td>
+                                <td class="py-1.5 text-slate-600">พิกัดพอยท์ ละติจูด (เช่น 15.1925)</td>
+                            </tr>
+                            <tr>
+                                <td class="py-1.5 text-blue-600 font-semibold">ลองจิจูด (Lng)</td>
+                                <td class="py-1.5 text-slate-600">พิกัดพอยท์ ลองจิจูด (เช่น 104.8580)</td>
+                            </tr>
+                            <tr>
+                                <td class="py-1.5 text-blue-600 font-semibold">ลิงก์รูปภาพใน Google Drive</td>
+                                <td class="py-1.5 text-slate-600">ลิงก์แชร์รูปภาพสิทธิ์แบบสาธารณะใน Drive</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                <div class="space-y-2 mt-4 bg-yellow-50 text-yellow-900 p-3.5 rounded-xl border border-yellow-200 text-xs leading-relaxed">
+                    <h4 class="font-bold font-kanit flex items-center gap-1.5 text-xs sm:text-sm mb-1">
+                        <i class="fa-solid fa-triangle-exclamation text-yellow-600"></i> เกร็ดน่ารู้เรื่องลิงก์ Google Sheets สำหรับนักพัฒนา
+                    </h4>
+                    <p>ระบบนี้ทำการดึงข้อมูลโดยตรงจาก Google Sheets แบบออนไลน์ตลอดเวลา หากคุณทำการเพิ่ม ลบ หรือแก้ไขข้อมูลนักเรียนในชีตต้นฉบับ ข้อมูลบนหน้าแผนที่นี้จะอัปเดตตามโดยอัตโนมัติภายในไม่กี่นาทีหลังจากที่มีการรีเฟรชหน้าเว็บ</p>
+                </div>
+            </div>
+            <div class="bg-slate-50 px-5 py-3 sm:px-6 sm:py-4 flex justify-end border-t border-slate-100">
+                <button onclick="toggleModal('infoModal')" class="bg-slate-200 hover:bg-slate-300 text-slate-700 px-4 py-2 rounded-xl transition text-xs sm:text-sm font-medium">
+                    ปิดหน้าต่างนี้
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Script Application -->
+    <script>
+        //========================================================================//
+        // 📍 ส่วนสำหรับตั้งค่าลิงก์เชื่อมฐานข้อมูลของคุณ (CONFIGURATION)                 //
+        // 1. เปิด Google Sheets ต้นทางของคุณ                                      //
+        // 2. ไปที่ ไฟล์ -> แชร์ -> เผยแพร่ไปยังเว็บ -> เลือกประเภทเป็น .csv              //
+        // 3. คัดลอกลิงก์ CSV นั้นมาวางในเครื่องหมายอัญประกาศ "" ด้านล่างนี้                 //
+        //========================================================================//
+        const GOOGLE_SHEET_CSV_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vQ1ZLr3w9osV-mhd_InrcUYWw-pP-sNujETYFNjs8ZFgsy-5yuDT0BnlEPh7e2hd4fFGDv2-snOaWwV/pub?gid=0&single=true&output=csv"; 
+        // ตัวอย่าง: "https://docs.google.com/spreadsheets/d/e/2PACX-1vT.../pub?output=csv"
+        
+        // Setup variables
+        let map;
+        let markersGroup;
+        let studentsData = [];
+        let filteredStudents = [];
+        
+        // Mock Data สำหรับเปิดให้เห็นการทำงานของแผนที่ และทดสอบหน้าเว็บครั้งแรก (เขต ต.แสนสุข จ.อุบลราชธานี)
+        const mockStudents = [
+            {
+                classroom: 'ม.1/1',
+                name: 'เด็กชายสมหมาย มีความเพียร (ข้อมูลจำลอง)',
+                lat: 15.1932,
+                lng: 104.8565,
+                image: 'https://images.unsplash.com/photo-1544005313-94ddf0286df2?w=150&auto=format&fit=crop&q=80'
+            },
+            {
+                classroom: 'ม.1/1',
+                name: 'เด็กหญิงมะลิ รักเรียน (ข้อมูลจำลอง)',
+                lat: 15.1901,
+                lng: 104.8622,
+                image: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&auto=format&fit=crop&q=80'
+            },
+            {
+                classroom: 'ม.1/2',
+                name: 'เด็กชายธนา โชคดี (ข้อมูลจำลอง)',
+                lat: 15.1856,
+                lng: 104.8510,
+                image: 'https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?w=150&auto=format&fit=crop&q=80'
+            },
+            {
+                classroom: 'ม.2/1',
+                name: 'เด็กหญิงสุนิสา ใจงาม (ข้อมูลจำลอง)',
+                lat: 15.2012,
+                lng: 104.8589,
+                image: 'https://images.unsplash.com/photo-1517841905240-472988babdf9?w=150&auto=format&fit=crop&q=80'
+            },
+            {
+                classroom: 'ม.2/1',
+                name: 'เด็กชายพิพัฒน์ ทรัพย์เจริญ (ข้อมูลจำลอง)',
+                lat: 15.1968,
+                lng: 104.8698,
+                image: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=150&auto=format&fit=crop&q=80'
+            },
+            {
+                classroom: 'ม.2/2',
+                name: 'นางสาวกานต์สินี อารีรอบ (ข้อมูลจำลอง)',
+                lat: 15.1812,
+                lng: 104.8655,
+                image: 'https://images.unsplash.com/photo-1544725176-7c40e5a71c5e?w=150&auto=format&fit=crop&q=80'
+            }
+        ];
+
+        // Default Leaflet initialization on page load
+        window.onload = function() {
+            // Center near Saen Suk, Warin Chamrap / Ubon Ratchathani University area
+            const defaultLat = 15.1930;
+            const defaultLng = 104.8580;
+            const defaultZoom = 14;
+
+            map = L.map('map', {
+                tap: true, // Allows smooth taps on mobile Leaflet popups
+                zoomControl: true
+            }).setView([defaultLat, defaultLng], defaultZoom);
+
+            // Move Zoom Control to Top-Right for better mobile hand ergonomics
+            map.zoomControl.setPosition('topright');
+
+            // Adding beautiful OSM tiles
+            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                attribution: '© OpenStreetMap contributors',
+                maxZoom: 19
+            }).addTo(map);
+
+            // Create Layer group for markers
+            markersGroup = L.layerGroup().addTo(map);
+
+            // Check if there is a configured URL
+            if (GOOGLE_SHEET_CSV_URL && GOOGLE_SHEET_CSV_URL.trim() !== "") {
+                loadFromUrl(GOOGLE_SHEET_CSV_URL.trim());
+            } else {
+                // If no URL is embedded, load Mock Data to keep the app interactive and guide the developer
+                loadMockData();
+            }
+        };
+
+        // Utility to convert Google Drive share links into a direct embeddable URL
+        function parseGoogleDriveLink(url) {
+            if (!url) return '';
+            
+            // Normalize spaces
+            url = url.trim();
+            
+            // Check if it's already a direct or regular web image url
+            if (url.startsWith('http') && !url.includes('drive.google.com')) {
+                return url;
+            }
+
+            // Patterns for Google Drive file ID extraction
+            const patterns = [
+                /\/file\/d\/([a-zA-Z0-9_-]+)/, // .../file/d/FILEID/view...
+                /[?&]id=([a-zA-Z0-9_-]+)/,      // ...?id=FILEID
+                /id=([a-zA-Z0-9_-]+)/,
+                /\/open\?id=([a-zA-Z0-9_-]+)/
+            ];
+
+            for (let pattern of patterns) {
+                const match = url.match(pattern);
+                if (match && match[1]) {
+                    // Returns standard Google Drive Thumbnail/Image fetch URL which works directly inside img tags
+                    return `https://lh3.googleusercontent.com/d/${match[1]}`;
+                }
+            }
+
+            return url;
+        }
+
+        // Toggle modal display
+        function toggleModal(modalId) {
+            const modal = document.getElementById(modalId);
+            if (modal.classList.contains('hidden')) {
+                modal.classList.remove('hidden');
+            } else {
+                modal.classList.add('hidden');
+            }
+        }
+
+        // Show a custom status message banner
+        function showStatus(text, type = 'success') {
+            const banner = document.getElementById('statusMessage');
+            banner.classList.remove('hidden', 'bg-emerald-50', 'bg-rose-50', 'bg-amber-50', 'text-emerald-800', 'text-rose-800', 'text-amber-800', 'border-emerald-200', 'border-rose-200', 'border-amber-200');
+            
+            if (type === 'success') {
+                banner.classList.add('bg-emerald-50', 'text-emerald-800', 'border', 'border-emerald-200');
+                banner.innerHTML = `<i class="fa-solid fa-circle-check text-emerald-500 text-sm sm:text-base"></i> <span class="text-xs sm:text-sm font-medium">${text}</span>`;
+            } else if (type === 'warning') {
+                banner.classList.add('bg-amber-50', 'text-amber-800', 'border', 'border-amber-200');
+                banner.innerHTML = `<i class="fa-solid fa-circle-info text-amber-500 text-sm sm:text-base"></i> <span class="text-xs sm:text-sm font-medium">${text}</span>`;
+            } else {
+                banner.classList.add('bg-rose-50', 'text-rose-800', 'border', 'border-rose-200');
+                banner.innerHTML = `<i class="fa-solid fa-circle-exclamation text-rose-500 text-sm sm:text-base"></i> <span class="text-xs sm:text-sm font-medium">${text}</span>`;
+            }
+            
+            // Auto hide after 8 seconds
+            setTimeout(() => {
+                banner.classList.add('hidden');
+            }, 8000);
+        }
+
+        // Load CSV Data from the embedded URL
+        function loadFromUrl(url) {
+            document.getElementById('connectionStatus').innerText = "กำลังอัปเดตข้อมูล...";
+            document.getElementById('connectionStatus').className = "text-[10px] sm:text-xs font-semibold uppercase tracking-wider font-kanit text-blue-600";
+            
+            Papa.parse(url, {
+                download: true,
+                header: true,
+                skipEmptyLines: true,
+                complete: function(results) {
+                    processParsedData(results.data);
+                    document.getElementById('connectionStatus').innerText = "เชื่อมต่อคลาวด์ชีตเสร็จสิ้น";
+                    document.getElementById('connectionStatus').className = "text-[10px] sm:text-xs font-semibold uppercase tracking-wider font-kanit text-emerald-600";
+                    document.getElementById('sourceLabel').innerHTML = `<i class="fa-solid fa-cloud-arrow-down text-emerald-500"></i> ซิงค์ฐานข้อมูลออนไลน์สำเร็จแบบเรียลไทม์`;
+                },
+                error: function(err) {
+                    console.error(err);
+                    showStatus('ไม่สามารถเชื่อมข้อมูลจาก Google Sheets ได้โดยตรง โปรดสแกนการแชร์และการตั้งค่าความถูกต้องของลิงก์', 'error');
+                    loadMockData(); // auto fallback
+                }
+            });
+        }
+
+        // Load mock data on start and guide the user
+        function loadMockData() {
+            processParsedData(mockStudents, true);
+            document.getElementById('connectionStatus').innerText = "กำลังรันโหมดจำลอง (Demo Mode)";
+            document.getElementById('connectionStatus').className = "text-[10px] sm:text-xs font-semibold uppercase tracking-wider font-kanit text-amber-600";
+            document.getElementById('sourceLabel').innerHTML = `<i class="fa-solid fa-triangle-exclamation text-amber-500 mr-1"></i> แสดงข้อมูลตัวอย่าง | โปรดกรอกตัวแปร GOOGLE_SHEET_CSV_URL ในไฟล์ index.html`;
+            
+            showStatus('แอปพลิเคชันเริ่มรันด้วยข้อมูลตัวอย่างในระบบ เพื่อแสดงข้อมูลจริง โปรดนำลิงก์ Google Sheets มาเขียนใส่ตัวแปร GOOGLE_SHEET_CSV_URL ในไฟล์นี้', 'warning');
+        }
+
+        // Standardize keys matching requirements
+        function processParsedData(rawData, isAlreadyFormatted = false) {
+            studentsData = [];
+            
+            if (isAlreadyFormatted) {
+                studentsData = rawData.map(item => ({
+                    classroom: item.classroom || 'ทั่วไป',
+                    name: item.name,
+                    lat: parseFloat(item.lat),
+                    lng: parseFloat(item.lng),
+                    image: parseGoogleDriveLink(item.image)
+                }));
+            } else {
+                // Dynamic header mapping
+                rawData.forEach(row => {
+                    let classroom = 'ทั่วไป';
+                    let name = '';
+                    let lat = NaN;
+                    let lng = NaN;
+                    let imageLink = '';
+
+                    for (let key in row) {
+                        const cleanKey = key.trim();
+                        const val = row[key] ? row[key].trim() : '';
+
+                        if (cleanKey.includes('ห้องเรียน') || cleanKey.toLowerCase() === 'class' || cleanKey.toLowerCase() === 'classroom') {
+                            classroom = val;
+                        } else if (cleanKey.includes('ชื่อ') || cleanKey.toLowerCase() === 'name' || cleanKey.includes('นักเรียน')) {
+                            name = val;
+                        } else if (cleanKey.includes('ละติจูด') || cleanKey.includes('Lat') || cleanKey.includes('lat') || cleanKey.includes('latitude')) {
+                            lat = parseFloat(val);
+                        } else if (cleanKey.includes('ลองจิจูด') || cleanKey.includes('Lng') || cleanKey.includes('lng') || cleanKey.includes('longitude')) {
+                            lng = parseFloat(val);
+                        } else if (cleanKey.includes('รูป') || cleanKey.includes('Drive') || cleanKey.toLowerCase() === 'image' || cleanKey.toLowerCase() === 'img' || cleanKey.includes('ลิงก์')) {
+                            imageLink = val;
+                        }
+                    }
+
+                    if (name) {
+                        studentsData.push({
+                            classroom: classroom || 'ทั่วไป',
+                            name: name,
+                            lat: lat,
+                            lng: lng,
+                            image: parseGoogleDriveLink(imageLink)
+                        });
+                    }
+                });
+            }
+
+            if (studentsData.length === 0) {
+                showStatus('โครงสร้างในลิงก์ชีตว่างเปล่าหรือไม่ถูกต้อง โปรดสแกนชื่อคอลัมน์ใหม่อีกครั้ง', 'error');
+                return;
+            }
+
+            // Populate class filter dropdown
+            populateClassDropdown();
+            
+            // Run applyFilters to draw map and table
+            applyFilters();
+            
+            // Calculate and render Stats
+            calculateStatistics();
+        }
+
+        // Calculate mapped vs missing coords
+        function calculateStatistics() {
+            let total = studentsData.length;
+            let mapped = 0;
+            let missing = 0;
+
+            studentsData.forEach(student => {
+                if (!isNaN(student.lat) && !isNaN(student.lng)) {
+                    mapped++;
+                } else {
+                    missing++;
+                }
+            });
+
+            document.getElementById('statTotal').innerText = total;
+            document.getElementById('statMapped').innerText = mapped;
+            document.getElementById('statMissing').innerText = missing;
+        }
+
+        // Fill classes into class filter select element
+        function populateClassDropdown() {
+            const classFilter = document.getElementById('classFilter');
+            classFilter.innerHTML = '<option value="all">แสดงทั้งหมดทุกห้องเรียน</option>';
+            
+            const uniqueClasses = [...new Set(studentsData.map(s => s.classroom))].sort();
+            
+            uniqueClasses.forEach(cls => {
+                if (cls) {
+                    const opt = document.createElement('option');
+                    opt.value = cls;
+                    opt.innerText = `ห้อง ${cls}`;
+                    classFilter.appendChild(opt);
+                }
+            });
+        }
+
+        // Filter and update elements
+        function applyFilters() {
+            const searchVal = document.getElementById('searchName').value.trim().toLowerCase();
+            const classVal = document.getElementById('classFilter').value;
+
+            filteredStudents = studentsData.filter(student => {
+                const matchSearch = student.name.toLowerCase().includes(searchVal);
+                const matchClass = (classVal === 'all') || (student.classroom === classVal);
+                return matchSearch && matchClass;
+            });
+
+            // Refresh UI components
+            updateMapMarkers();
+            renderListUI();
+            renderTableUI();
+        }
+
+        // Render markers to leaflet
+        function updateMapMarkers() {
+            markersGroup.clearLayers();
+            let validCoordinates = [];
+
+            // Custom Icon
+            const studentIcon = L.icon({
+                iconUrl: 'https://cdn-icons-png.flaticon.com/512/2642/2642502.png', // Blue location pin marker
+                iconSize: [34, 34],
+                iconAnchor: [17, 34],
+                popupAnchor: [0, -34]
+            });
+
+            filteredStudents.forEach((student, index) => {
+                if (!isNaN(student.lat) && !isNaN(student.lng)) {
+                    validCoordinates.push([student.lat, student.lng]);
+
+                    const studentImg = student.image || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&auto=format&fit=crop&q=80';
+                    const popupContent = `
+                        <div class="flex flex-col gap-1.5 p-0.5 max-w-[180px] sm:max-w-[200px]">
+                            <div class="h-20 sm:h-24 w-full rounded-lg overflow-hidden bg-slate-100 flex items-center justify-center">
+                                <img src="${studentImg}" alt="${student.name}" class="w-full h-full object-cover" onerror="this.src='https://cdn-icons-png.flaticon.com/512/3135/3135715.png';">
+                            </div>
+                            <div>
+                                <span class="bg-blue-100 text-blue-800 text-[9px] sm:text-[10px] font-semibold px-2 py-0.5 rounded-full">${student.classroom}</span>
+                                <h4 class="font-bold text-slate-800 text-xs sm:text-sm mt-1 leading-tight">${student.name}</h4>
+                                <p class="text-[9px] sm:text-[10px] text-slate-500 mt-0.5">พิกัด: ${student.lat.toFixed(4)}, ${student.lng.toFixed(4)}</p>
+                            </div>
+                            <a href="https://www.google.com/maps/dir/?api=1&destination=${student.lat},${student.lng}" target="_blank" 
+                               class="bg-blue-600 hover:bg-blue-700 text-white text-center text-[10px] sm:text-xs py-2 px-3 rounded-lg font-medium flex items-center justify-center gap-1.5 transition-all no-underline mt-1 active:scale-95">
+                                <i class="fa-solid fa-diamond-turn-right text-[9px] sm:text-[10px]"></i> นำทางโดย Google Maps
+                            </a>
+                        </div>
+                    `;
+
+                    const marker = L.marker([student.lat, student.lng], { icon: studentIcon })
+                        .bindPopup(popupContent);
+                    
+                    markersGroup.addLayer(marker);
+                }
+            });
+
+            // Fit zoom to dynamic bounds
+            if (validCoordinates.length > 0) {
+                map.fitBounds(validCoordinates, { padding: [30, 30] });
+            }
+        }
+
+        // Render Directory Sidebar
+        function renderListUI() {
+            const listContainer = document.getElementById('studentList');
+            listContainer.innerHTML = '';
+
+            if (filteredStudents.length === 0) {
+                listContainer.innerHTML = `
+                    <div class="p-6 text-center text-slate-400 text-xs sm:text-sm">
+                        <i class="fa-solid fa-filter-circle-xmark text-2xl mb-1.5 block text-slate-300"></i>
+                        ไม่พบข้อมูลตามตัวกรองที่เลือก
+                    </div>
+                `;
+                return;
+            }
+
+            filteredStudents.forEach(student => {
+                const hasCoordinates = !isNaN(student.lat) && !isNaN(student.lng);
+                const studentImg = student.image || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&auto=format&fit=crop&q=80';
+                
+                const card = document.createElement('div');
+                card.className = "p-3 sm:p-4 hover:bg-slate-50 active:bg-slate-100 transition-all cursor-pointer flex items-center justify-between gap-2.5 border-l-4 shrink-0 " + 
+                                 (hasCoordinates ? "border-l-blue-500" : "border-l-rose-400");
+                
+                card.innerHTML = `
+                    <div class="flex items-center gap-2.5 min-w-0">
+                        <img src="${studentImg}" alt="${student.name}" 
+                             class="w-9 h-9 rounded-full object-cover border border-slate-200 shrink-0" 
+                             onerror="this.src='https://cdn-icons-png.flaticon.com/512/3135/3135715.png';">
+                        <div class="min-w-0">
+                            <div class="flex items-center gap-1.5">
+                                <span class="bg-slate-200 text-slate-700 text-[9px] font-bold px-1.5 py-0.5 rounded shrink-0">${student.classroom}</span>
+                                <h4 class="font-medium text-slate-800 text-xs sm:text-sm leading-tight truncate">${student.name}</h4>
+                            </div>
+                            <span class="text-[10px] sm:text-xs text-slate-500 flex items-center gap-1 mt-1">
+                                ${hasCoordinates 
+                                    ? `<i class="fa-solid fa-location-dot text-emerald-500 text-[10px]"></i> พิกัด: ${student.lat.toFixed(4)}, ${student.lng.toFixed(4)}` 
+                                    : `<i class="fa-solid fa-triangle-exclamation text-rose-500 text-[10px]"></i> ยังไม่ได้ระบุพิกัด`
+                                }
+                            </span>
+                        </div>
+                    </div>
+                    ${hasCoordinates ? `
+                        <button class="p-2 text-blue-600 hover:bg-blue-50 active:scale-95 rounded-lg transition-all" title="ส่องบนแผนที่">
+                            <i class="fa-solid fa-arrows-to-eye text-sm sm:text-base"></i>
+                        </button>
+                    ` : ''}
+                `;
+
+                if (hasCoordinates) {
+                    card.addEventListener('click', () => {
+                        map.setView([student.lat, student.lng], 17);
+                        markersGroup.eachLayer(layer => {
+                            if (layer.getLatLng().lat === student.lat && layer.getLatLng().lng === student.lng) {
+                                layer.openPopup();
+                            }
+                        });
+                        // Smooth scroll on mobile screens to the map
+                        if (window.innerWidth < 768) {
+                            document.getElementById('map').scrollIntoView({ behavior: 'smooth', block: 'center' });
+                        }
+                    });
+                }
+
+                listContainer.appendChild(card);
+            });
+        }
+
+        // Render Table list UI
+        function renderTableUI() {
+            const tableBody = document.getElementById('studentTableBody');
+            const noDataRow = document.getElementById('noDataRow');
+            tableBody.innerHTML = '';
+
+            if (filteredStudents.length === 0) {
+                noDataRow.classList.remove('hidden');
+                return;
+            } else {
+                noDataRow.classList.add('hidden');
+            }
+
+            filteredStudents.forEach((student, index) => {
+                const hasCoordinates = !isNaN(student.lat) && !isNaN(student.lng);
+                const studentImg = student.image || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&auto=format&fit=crop&q=80';
+                const tr = document.createElement('tr');
+                tr.className = "hover:bg-slate-50/50 active:bg-slate-50/80 transition-all";
+                
+                tr.innerHTML = `
+                    <td class="py-2.5 px-4 text-center text-slate-400 font-mono text-[10px] sm:text-xs">${index + 1}</td>
+                    <td class="py-2 px-4">
+                        <img src="${studentImg}" alt="${student.name}" 
+                             class="w-10 h-10 rounded-xl object-cover border border-slate-100 shadow-sm"
+                             onerror="this.src='https://cdn-icons-png.flaticon.com/512/3135/3135715.png';">
+                    </td>
+                    <td class="py-2.5 px-4">
+                        <span class="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] sm:text-xs font-semibold bg-slate-100 text-slate-800 border border-slate-200">
+                            ${student.classroom}
+                        </span>
+                    </td>
+                    <td class="py-2.5 px-4 font-medium text-slate-800 text-xs sm:text-sm">${student.name}</td>
+                    <td class="py-2.5 px-4 text-center font-mono text-[10px] sm:text-xs ${hasCoordinates ? 'text-slate-600' : 'text-slate-300'}">
+                        ${hasCoordinates ? student.lat.toFixed(6) : 'ไม่มีข้อมูล'}
+                    </td>
+                    <td class="py-2.5 px-4 text-center font-mono text-[10px] sm:text-xs ${hasCoordinates ? 'text-slate-600' : 'text-slate-300'}">
+                        ${hasCoordinates ? student.lng.toFixed(6) : 'ไม่มีข้อมูล'}
+                    </td>
+                    <td class="py-2 px-4 text-center">
+                        <div class="flex items-center justify-center gap-1.5 sm:gap-2">
+                            ${hasCoordinates ? `
+                                <button onclick="focusOnMap(${student.lat}, ${student.lng})" class="text-blue-600 bg-blue-50 hover:bg-blue-100 active:scale-95 p-2 rounded-xl transition-all text-[10px] sm:text-xs font-medium flex items-center gap-1 shrink-0" title="ซูมพิกัด">
+                                    <i class="fa-solid fa-location-crosshairs text-xs sm:text-sm"></i> <span class="hidden lg:inline">ซูมพิกัด</span>
+                                </button>
+                                <a href="https://www.google.com/maps/dir/?api=1&destination=${student.lat},${student.lng}" target="_blank" 
+                                   class="text-indigo-600 bg-indigo-50 hover:bg-indigo-100 active:scale-95 p-2 rounded-xl transition-all text-[10px] sm:text-xs font-medium flex items-center gap-1 shrink-0 no-underline" title="เปิด Google Maps">
+                                    <i class="fa-solid fa-map-location text-xs sm:text-sm"></i> <span class="hidden lg:inline">นำทาง</span>
+                                </a>
+                            ` : `
+                                <span class="text-rose-500 bg-rose-50 px-2 py-1 rounded text-[10px] sm:text-xs font-medium inline-flex items-center gap-1">
+                                    <i class="fa-solid fa-circle-exclamation text-[10px]"></i> พิกัดบกพร่อง
+                                </span>
+                            `}
+                        </div>
+                    </td>
+                `;
+                
+                tableBody.appendChild(tr);
+            });
+        }
+
+        // Focus & pan map from Table clicks
+        function focusOnMap(lat, lng) {
+            map.setView([lat, lng], 18);
+            markersGroup.eachLayer(layer => {
+                if (layer.getLatLng().lat === lat && layer.getLatLng().lng === lng) {
+                    layer.openPopup();
+                }
+            });
+            document.getElementById('map').scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }
+
+        // Export active list back to CSV format
+        function exportToCsv() {
+            if (studentsData.length === 0) {
+                showStatus('ไม่มีข้อมูลส่งออกในระบบ', 'error');
+                return;
+            }
+
+            const exportData = studentsData.map(s => ({
+                'ห้องเรียน': s.classroom,
+                'ชื่อนักเรียน': s.name,
+                'ละติจูด (Lat)': s.lat || '',
+                'ลองจิจูด (Lng)': s.lng || '',
+                'ลิงก์รูปภาพใน Google Drive': s.image || ''
+            }));
+
+            const csv = Papa.unparse(exportData);
+            const blob = new Blob(["\uFEFF" + csv], { type: 'text/csv;charset=utf-8;' }); // \uFEFF for Thai encoding compatibility
+            const link = document.createElement("a");
+            
+            if (link.download !== undefined) {
+                const url = URL.createObjectURL(blob);
+                link.setAttribute("href", url);
+                link.setAttribute("download", "ฐานข้อมูลพิกัดบ้านนักเรียน_ส่งออก.csv");
+                link.style.visibility = 'hidden';
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
+                showStatus('ดาวน์โหลดไฟล์พิกัดนักเรียนในรูปแบบ CSV เรียบร้อยแล้ว', 'success');
+            }
+        }
+    </script>
+</body>
+</html>
