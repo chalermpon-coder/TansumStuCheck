@@ -74,7 +74,7 @@
                 </div>
                 <div>
                     <h1 class="text-base sm:text-lg md:text-xl font-bold tracking-tight leading-tight">ระบบแผนที่พิกัดบ้านนักเรียน</h1>
-                    <p class="text-[10px] sm:text-xs text-blue-100 font-light">แสดงพิกัดที่ตั้งนักเรียนรายบุคคลผ่านระบบออนไลน์</p>
+                    <p class="text-[10px] sm:text-xs text-blue-100 font-light">แสดงพิกัดที่ตั้งพร้อมรูปภาพ Avatar นักเรียนรายบุคคล</p>
                 </div>
             </div>
             <div class="flex shrink-0">
@@ -100,7 +100,7 @@
                     </span>
                     <span id="connectionStatus" class="text-xs font-semibold uppercase tracking-wider font-kanit">เชื่อมโยงข้อมูลสำเร็จ</span>
                 </div>
-                <h2 class="text-base sm:text-lg font-bold text-slate-800 font-kanit">แผนที่แสดงพิกัดที่ตั้งนักเรียนรายบุคคล</h2>
+                <h2 class="text-base sm:text-lg font-bold text-slate-800 font-kanit">แผนที่แสดงพิกัดและรูปโปรไฟล์นักเรียน</h2>
                 <p id="sourceLabel" class="text-xs text-slate-500 mt-0.5">
                     ดึงข้อมูลโดยตรงแบบอัตโนมัติจากไฟล์ฐานข้อมูลกลางทางออนไลน์
                 </p>
@@ -129,14 +129,14 @@
         <!-- Notification Message Banner -->
         <div id="statusMessage" class="hidden rounded-xl p-3 sm:p-4 flex items-center gap-2.5 shadow-sm"></div>
 
-        <!-- Main Workspace: Split View (Responsive for Mobile & Tablet) -->
+        <!-- Main Workspace: Split View -->
         <div class="grid grid-cols-1 md:grid-cols-12 gap-4 sm:gap-6 items-stretch">
             
-            <!-- Left Side: Interactive Map (Col 7 on tablets, Col 8 on desktop) -->
+            <!-- Left Side: Interactive Map -->
             <div class="md:col-span-7 lg:col-span-8 flex flex-col bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden">
                 <div class="bg-slate-50 px-4 py-2.5 border-b border-slate-100 flex justify-between items-center">
                     <h2 class="font-medium text-xs sm:text-sm text-slate-700 font-kanit flex items-center gap-1.5">
-                        <i class="fa-solid fa-map text-blue-500"></i> แผนที่ตำแหน่งที่ตั้งบ้านนักเรียน
+                        <i class="fa-solid fa-map text-blue-500"></i> แผนที่แสดงพิกัดที่ตั้งนักเรียน
                     </h2>
                     <span id="mapLegend" class="text-[10px] sm:text-xs text-slate-500 flex items-center gap-1 bg-white px-2 py-0.5 rounded border border-slate-200">
                         <span class="w-2 h-2 bg-blue-600 rounded-full inline-block"></span> บ้านนักเรียน
@@ -148,7 +148,7 @@
                 </div>
             </div>
 
-            <!-- Right Side: Sidebar & List (Col 5 on tablets, Col 4 on desktop) -->
+            <!-- Right Side: Sidebar & List -->
             <div class="md:col-span-5 lg:col-span-4 flex flex-col bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden">
                 <div class="bg-slate-50 px-4 py-2.5 border-b border-slate-100">
                     <h2 class="font-medium text-xs sm:text-sm text-slate-700 font-kanit flex items-center gap-1.5">
@@ -200,7 +200,7 @@
                     <h2 class="font-medium text-slate-700 font-kanit flex items-center gap-2 text-sm sm:text-base md:text-lg">
                         <i class="fa-solid fa-list-ol text-blue-500"></i> รายชื่อนักเรียนและพิกัดตำแหน่งบ้านทั้งหมด
                     </h2>
-                    <p class="text-[10px] sm:text-xs text-slate-500">ตรวจสอบ แก้ไข และกดส่องพิกัดเพื่อเริ่มนำทางได้ทันที</p>
+                    <p class="text-[10px] sm:text-xs text-slate-500">ตรวจสอบความถูกต้อง และกดส่องพิกัดหรือปุ่มนำทางได้ทันที</p>
                 </div>
                 <button onclick="exportToCsv()" class="w-full sm:w-auto bg-green-600 hover:bg-green-700 active:scale-95 text-white text-xs px-4 py-2.5 rounded-xl transition-all flex items-center justify-center gap-1.5 shadow-sm font-medium">
                     <i class="fa-solid fa-file-export"></i> ส่งออกข้อมูลเป็น CSV
@@ -273,7 +273,7 @@
                             </tr>
                             <tr>
                                 <td class="py-1.5 text-blue-600 font-semibold">ลิงก์รูปภาพใน Google Drive</td>
-                                <td class="py-1.5 text-slate-600">ลิงก์แชร์รูปภาพสิทธิ์แบบสาธารณะใน Drive</td>
+                                <td class="py-1.5 text-slate-600">คอลัมน์สุดท้ายของชีต ใส่ลิงก์แชร์สิทธิ์สาธารณะจาก Drive</td>
                             </tr>
                         </tbody>
                     </table>
@@ -281,9 +281,9 @@
 
                 <div class="space-y-2 mt-4 bg-yellow-50 text-yellow-900 p-3.5 rounded-xl border border-yellow-200 text-xs leading-relaxed">
                     <h4 class="font-bold font-kanit flex items-center gap-1.5 text-xs sm:text-sm mb-1">
-                        <i class="fa-solid fa-triangle-exclamation text-yellow-600"></i> เกร็ดน่ารู้เรื่องลิงก์ Google Sheets สำหรับนักพัฒนา
+                        <i class="fa-solid fa-triangle-exclamation text-yellow-600"></i> เกร็ดน่ารู้เรื่องรูปโปรไฟล์นักเรียน (Avatar)
                     </h4>
-                    <p>ระบบนี้ทำการดึงข้อมูลโดยตรงจาก Google Sheets แบบออนไลน์ตลอดเวลา หากคุณทำการเพิ่ม ลบ หรือแก้ไขข้อมูลนักเรียนในชีตต้นฉบับ ข้อมูลบนหน้าแผนที่นี้จะอัปเดตตามโดยอัตโนมัติภายในไม่กี่นาทีหลังจากที่มีการรีเฟรชหน้าเว็บ</p>
+                    <p>เมื่อคุณวางลิงก์แบ่งปันรูปภาพของ Google Drive ในคอลัมน์สุดท้าย ระบบจะทำการถอดรหัสรหัสรูปภาพและดึงมาเป็นรูปโปรไฟล์กลม (Avatar) โดยอัตโนมัติ กรุณาตั้งค่าการแชร์ใน Google Drive ให้เป็น <b>"ทุกคนที่มีลิงก์มีสิทธิ์อ่าน (Anyone with the link can view)"</b> เพื่อสิทธิ์การเข้าถึงภาพที่สมบูรณ์</p>
                 </div>
             </div>
             <div class="bg-slate-50 px-5 py-3 sm:px-6 sm:py-4 flex justify-end border-t border-slate-100">
@@ -303,7 +303,6 @@
         // 3. คัดลอกลิงก์ CSV นั้นมาวางในเครื่องหมายอัญประกาศ "" ด้านล่างนี้                 //
         //========================================================================//
         const GOOGLE_SHEET_CSV_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vQ1ZLr3w9osV-mhd_InrcUYWw-pP-sNujETYFNjs8ZFgsy-5yuDT0BnlEPh7e2hd4fFGDv2-snOaWwV/pub?gid=0&single=true&output=csv"; 
-        // ตัวอย่าง: "https://docs.google.com/spreadsheets/d/e/2PACX-1vT.../pub?output=csv"
         
         // Setup variables
         let map;
@@ -359,7 +358,6 @@
 
         // Default Leaflet initialization on page load
         window.onload = function() {
-            // Center near Saen Suk, Warin Chamrap / Ubon Ratchathani University area
             const defaultLat = 15.1930;
             const defaultLng = 104.8580;
             const defaultZoom = 14;
@@ -385,7 +383,6 @@
             if (GOOGLE_SHEET_CSV_URL && GOOGLE_SHEET_CSV_URL.trim() !== "") {
                 loadFromUrl(GOOGLE_SHEET_CSV_URL.trim());
             } else {
-                // If no URL is embedded, load Mock Data to keep the app interactive and guide the developer
                 loadMockData();
             }
         };
@@ -394,7 +391,6 @@
         function parseGoogleDriveLink(url) {
             if (!url) return '';
             
-            // Normalize spaces
             url = url.trim();
             
             // Check if it's already a direct or regular web image url
@@ -413,7 +409,7 @@
             for (let pattern of patterns) {
                 const match = url.match(pattern);
                 if (match && match[1]) {
-                    // Returns standard Google Drive Thumbnail/Image fetch URL which works directly inside img tags
+                    // Returns standard Google Drive fetch URL which works directly inside img tags
                     return `https://lh3.googleusercontent.com/d/${match[1]}`;
                 }
             }
@@ -470,7 +466,7 @@
                 },
                 error: function(err) {
                     console.error(err);
-                    showStatus('ไม่สามารถเชื่อมข้อมูลจาก Google Sheets ได้โดยตรง โปรดสแกนการแชร์และการตั้งค่าความถูกต้องของลิงก์', 'error');
+                    showStatus('ไม่สามารถเชื่อมข้อมูลจาก Google Sheets ได้โดยตรง โปรดตรวจสอบความถูกต้องและสิทธิ์การแชร์ของลิงก์', 'error');
                     loadMockData(); // auto fallback
                 }
             });
@@ -507,6 +503,27 @@
                     let lng = NaN;
                     let imageLink = '';
 
+                    // 1. ตรวจจับคอลัมน์รูปภาพโดยตรงก่อนจากชื่อหัวข้อ
+                    for (let key in row) {
+                        const cleanKey = key.trim();
+                        const val = row[key] ? row[key].trim() : '';
+
+                        if (cleanKey.includes('รูปภาพ') || cleanKey.includes('Drive') || cleanKey.includes('ลิงก์รูปภาพ') || cleanKey.toLowerCase() === 'image' || cleanKey.toLowerCase() === 'img' || cleanKey.toLowerCase() === 'avatar') {
+                            imageLink = val;
+                            break;
+                        }
+                    }
+
+                    // 2. หากไม่พบคอลัมน์ที่ตั้งใจตั้งชื่อไว้ ให้ดึงจากคอลัมน์สุดท้ายของแถวเป็น Fallback (เพื่อรองรับไฟล์ตามรูปแบบที่ครูทำ)
+                    if (!imageLink) {
+                        const keys = Object.keys(row);
+                        if (keys.length > 0) {
+                            const lastKey = keys[keys.length - 1];
+                            imageLink = row[lastKey] ? row[lastKey].trim() : '';
+                        }
+                    }
+
+                    // ดึงค่าอื่นๆ ตามชื่อคอลัมน์ทั่วไป
                     for (let key in row) {
                         const cleanKey = key.trim();
                         const val = row[key] ? row[key].trim() : '';
@@ -519,8 +536,6 @@
                             lat = parseFloat(val);
                         } else if (cleanKey.includes('ลองจิจูด') || cleanKey.includes('Lng') || cleanKey.includes('lng') || cleanKey.includes('longitude')) {
                             lng = parseFloat(val);
-                        } else if (cleanKey.includes('รูป') || cleanKey.includes('Drive') || cleanKey.toLowerCase() === 'image' || cleanKey.toLowerCase() === 'img' || cleanKey.includes('ลิงก์')) {
-                            imageLink = val;
                         }
                     }
 
@@ -621,6 +636,7 @@
                 if (!isNaN(student.lat) && !isNaN(student.lng)) {
                     validCoordinates.push([student.lat, student.lng]);
 
+                    // กำหนดใช้ Avatar จริงจากชีต หรือภาพสำรองหากไม่มี
                     const studentImg = student.image || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&auto=format&fit=crop&q=80';
                     const popupContent = `
                         <div class="flex flex-col gap-1.5 p-0.5 max-w-[180px] sm:max-w-[200px]">
@@ -633,8 +649,9 @@
                                 <p class="text-[9px] sm:text-[10px] text-slate-500 mt-0.5">พิกัด: ${student.lat.toFixed(4)}, ${student.lng.toFixed(4)}</p>
                             </div>
                             <a href="https://www.google.com/maps/dir/?api=1&destination=${student.lat},${student.lng}" target="_blank" 
-                               class="bg-blue-600 hover:bg-blue-700 text-white text-center text-[10px] sm:text-xs py-2 px-3 rounded-lg font-medium flex items-center justify-center gap-1.5 transition-all no-underline mt-1 active:scale-95">
-                                <i class="fa-solid fa-diamond-turn-right text-[9px] sm:text-[10px]"></i> นำทางโดย Google Maps
+                               style="color: white !important;"
+                               class="bg-blue-600 hover:bg-blue-700 !text-white text-center text-[10px] sm:text-xs py-2 px-3 rounded-lg font-medium flex items-center justify-center gap-1.5 transition-all no-underline mt-1 active:scale-95">
+                                <i class="fa-solid fa-diamond-turn-right text-[9px] sm:text-[10px] !text-white" style="color: white !important;"></i> นำทางโดย Google Maps
                             </a>
                         </div>
                     `;
@@ -652,7 +669,7 @@
             }
         }
 
-        // Render Directory Sidebar
+        // Render Directory Sidebar (Avatar)
         function renderListUI() {
             const listContainer = document.getElementById('studentList');
             listContainer.innerHTML = '';
@@ -708,7 +725,6 @@
                                 layer.openPopup();
                             }
                         });
-                        // Smooth scroll on mobile screens to the map
                         if (window.innerWidth < 768) {
                             document.getElementById('map').scrollIntoView({ behavior: 'smooth', block: 'center' });
                         }
@@ -719,7 +735,7 @@
             });
         }
 
-        // Render Table list UI
+        // Render Table list UI (Avatar)
         function renderTableUI() {
             const tableBody = document.getElementById('studentTableBody');
             const noDataRow = document.getElementById('noDataRow');
@@ -807,7 +823,7 @@
             }));
 
             const csv = Papa.unparse(exportData);
-            const blob = new Blob(["\uFEFF" + csv], { type: 'text/csv;charset=utf-8;' }); // \uFEFF for Thai encoding compatibility
+            const blob = new Blob(["\uFEFF" + csv], { type: 'text/csv;charset=utf-8;' }); 
             const link = document.createElement("a");
             
             if (link.download !== undefined) {
